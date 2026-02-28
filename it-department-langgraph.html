@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>IT Department — LangGraph Multi-Agent</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;700;800&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #0f1218;
+    --border: #1e2530;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --accent3: #10b981;
+    --accent4: #f59e0b;
+    --accent5: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* grid bg */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: 
+      linear-gradient(rgba(0,212,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container { position: relative; z-index: 1; max-width: 1400px; margin: 0 auto; padding: 40px 24px; }
+
+  header { text-align: center; margin-bottom: 60px; }
+  header .tag {
+    display: inline-block;
+    font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+    color: var(--accent); border: 1px solid rgba(0,212,255,0.3);
+    padding: 4px 16px; border-radius: 2px; margin-bottom: 20px;
+  }
+  header h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 800;
+    background: linear-gradient(135deg, #fff 30%, var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    line-height: 1.1; margin-bottom: 12px;
+  }
+  header p { color: var(--muted); font-size: 13px; max-width: 600px; margin: 0 auto; }
+
+  /* GRAPH AREA */
+  .graph-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 48px 32px;
+    margin-bottom: 48px;
+    position: relative;
+    overflow: hidden;
+  }
+  .graph-wrapper::before {
+    content: '// LANGGRAPH WORKFLOW';
+    position: absolute; top: 16px; left: 20px;
+    font-size: 10px; color: var(--muted); letter-spacing: 2px;
+  }
+
+  .graph {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0;
+  }
+
+  /* NODES */
+  .node {
+    border-radius: 6px;
+    padding: 14px 24px;
+    font-size: 12px; font-weight: 600;
+    text-align: center;
+    position: relative;
+    cursor: default;
+    transition: transform 0.2s, box-shadow 0.2s;
+    white-space: nowrap;
+  }
+  .node:hover { transform: scale(1.04); }
+
+  .node-start {
+    background: linear-gradient(135deg, rgba(0,212,255,0.2), rgba(0,212,255,0.05));
+    border: 1px solid var(--accent);
+    color: var(--accent);
+    box-shadow: 0 0 20px rgba(0,212,255,0.15);
+    min-width: 220px;
+  }
+  .node-manager {
+    background: linear-gradient(135deg, rgba(124,58,237,0.25), rgba(124,58,237,0.08));
+    border: 1px solid var(--accent2);
+    color: #a78bfa;
+    box-shadow: 0 0 24px rgba(124,58,237,0.2);
+    min-width: 280px;
+  }
+  .node-agent {
+    background: var(--bg);
+    border-width: 1px;
+    border-style: solid;
+    min-width: 190px;
+  }
+  .node-tools {
+    font-size: 10px; font-weight: 400;
+    padding: 8px 16px;
+    border-radius: 4px;
+    min-width: 160px;
+  }
+  .node-end {
+    background: linear-gradient(135deg, rgba(16,185,129,0.2), rgba(16,185,129,0.05));
+    border: 1px solid var(--accent3);
+    color: var(--accent3);
+    min-width: 220px;
+  }
+
+  /* color variants */
+  .dev    { border-color: var(--accent3); color: var(--accent3); }
+  .qa     { border-color: var(--accent4); color: var(--accent4); }
+  .ops    { border-color: var(--accent5); color: var(--accent5); }
+  .review { border-color: var(--accent); color: var(--accent); }
+  .docs   { border-color: #a78bfa; color: #a78bfa; }
+
+  .tools-dev  { background: rgba(16,185,129,0.06); border: 1px dashed rgba(16,185,129,0.3); color: rgba(16,185,129,0.7); }
+  .tools-qa   { background: rgba(245,158,11,0.06); border: 1px dashed rgba(245,158,11,0.3); color: rgba(245,158,11,0.7); }
+  .tools-ops  { background: rgba(239,68,68,0.06); border: 1px dashed rgba(239,68,68,0.3); color: rgba(239,68,68,0.7); }
+  .tools-rev  { background: rgba(0,212,255,0.06); border: 1px dashed rgba(0,212,255,0.3); color: rgba(0,212,255,0.7); }
+  .tools-docs { background: rgba(167,139,250,0.06); border: 1px dashed rgba(167,139,250,0.3); color: rgba(167,139,250,0.7); }
+
+  /* arrows */
+  .arrow {
+    width: 2px; height: 32px;
+    background: linear-gradient(to bottom, var(--border), var(--muted));
+    position: relative; margin: 0 auto;
+  }
+  .arrow::after {
+    content: '▼';
+    position: absolute; bottom: -14px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 10px; color: var(--muted);
+  }
+
+  /* horizontal agents row */
+  .agents-row {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    justify-content: center;
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  .agent-col {
+    display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+
+  /* connecting line from manager to agents */
+  .h-line-wrapper {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    position: relative;
+    height: 32px;
+    margin-bottom: 0;
+  }
+  .h-line-wrapper::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 2px; height: 50%;
+    background: var(--muted);
+  }
+  .h-connector {
+    position: absolute;
+    top: 50%; height: 2px;
+    background: var(--border);
+  }
+
+  /* SECTIONS BELOW */
+  .sections {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: 20px;
+    margin-bottom: 48px;
+  }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    transition: border-color 0.2s;
+  }
+  .card:hover { border-color: rgba(0,212,255,0.3); }
+  .card-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 16px;
+  }
+  .card-icon {
+    width: 32px; height: 32px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+  }
+  .card h3 { font-family: 'Syne', sans-serif; font-size: 14px; font-weight: 700; }
+  .card ul { list-style: none; }
+  .card ul li {
+    font-size: 11px; color: var(--muted);
+    padding: 5px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    display: flex; gap: 8px; align-items: flex-start;
+  }
+  .card ul li::before { content: '→'; color: var(--accent); flex-shrink: 0; }
+  .card ul li:last-child { border: none; }
+
+  .code-block {
+    background: #050709;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    margin-bottom: 48px;
+    overflow-x: auto;
+  }
+  .code-block .filename {
+    font-size: 10px; color: var(--muted); letter-spacing: 2px;
+    margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+  }
+  .code-block .filename::before {
+    content: '';
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--accent);
+    display: block;
+  }
+  pre {
+    font-size: 12px;
+    line-height: 1.8;
+    white-space: pre-wrap;
+  }
+  .kw  { color: #c792ea; }
+  .fn  { color: #82aaff; }
+  .str { color: #c3e88d; }
+  .cm  { color: #546e7a; font-style: italic; }
+  .num { color: #f78c6c; }
+  .cls { color: #ffcb6b; }
+
+  .structure-tree {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px;
+    margin-bottom: 48px;
+    font-size: 12px;
+    line-height: 2;
+  }
+  .structure-tree h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 13px; margin-bottom: 16px;
+    color: var(--accent);
+  }
+  .tree-line { color: var(--muted); }
+  .tree-file { color: var(--text); }
+  .tree-comment { color: var(--muted); font-size: 10px; }
+  .tree-dir { color: var(--accent4); font-weight: 600; }
+
+  footer {
+    text-align: center;
+    padding: 32px 0;
+    font-size: 10px;
+    color: var(--muted);
+    border-top: 1px solid var(--border);
+    letter-spacing: 2px;
+  }
+
+  /* vertical arrow from node */
+  .v-arrow { width: 2px; height: 28px; background: var(--border); margin: 0 auto; }
+
+  /* agent sub-arrow */
+  .down-arrow {
+    width: 2px; height: 20px;
+    background: var(--border);
+    margin: 0 auto;
+    position: relative;
+  }
+  .down-arrow::after {
+    content: '▼'; position: absolute; bottom: -12px; left: 50%;
+    transform: translateX(-50%);
+    font-size: 9px; color: var(--muted);
+  }
+
+  /* state badge */
+  .state-badge {
+    display: inline-block;
+    font-size: 9px; padding: 2px 8px;
+    border: 1px solid rgba(0,212,255,0.3);
+    border-radius: 2px; color: var(--accent);
+    margin-top: 4px;
+  }
+
+  /* routing labels */
+  .route-label {
+    font-size: 9px; color: var(--muted);
+    letter-spacing: 1px; text-align: center;
+    margin: 4px 0;
+  }
+
+  .human-loop {
+    background: rgba(245,158,11,0.08);
+    border: 1px solid rgba(245,158,11,0.3);
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-size: 11px; color: var(--accent4);
+    min-width: 200px; text-align: center;
+  }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div class="tag">LangGraph · Multi-Agent · Python</div>
+    <h1>IT Department<br>Multi-Agent System</h1>
+    <p>Arquitetura para desenvolver, manter e evoluir seus repositórios locais com agentes especializados</p>
+  </header>
+
+  <!-- GRAPH VISUAL -->
+  <div class="graph-wrapper">
+    <div class="graph">
+
+      <!-- Entry -->
+      <div class="node node-start">
+        🖥️ &nbsp;USER REQUEST
+        <div class="state-badge">AgentState</div>
+      </div>
+      <div class="arrow"></div>
+
+      <!-- Supervisor -->
+      <div style="height:14px"></div>
+      <div class="node node-manager">
+        🧠 &nbsp;SUPERVISOR AGENT (IT Manager)
+        <div style="font-size:10px; margin-top:4px; opacity:.6; font-weight:400">routes · delegates · reviews · merges</div>
+      </div>
+
+      <!-- Fan-out lines -->
+      <div class="h-line-wrapper">
+        <svg width="100%" height="32" style="position:absolute;top:0;left:0;overflow:visible">
+          <line x1="50%" y1="0" x2="50%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <!-- horizontal bar -->
+          <line x1="12%" y1="16" x2="88%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <!-- verticals down to agents -->
+          <line x1="12%" y1="16" x2="12%" y2="32" stroke="#334155" stroke-width="1.5"/>
+          <line x1="29%" y1="16" x2="29%" y2="32" stroke="#334155" stroke-width="1.5"/>
+          <line x1="50%" y1="16" x2="50%" y2="32" stroke="#334155" stroke-width="1.5"/>
+          <line x1="70%" y1="16" x2="70%" y2="32" stroke="#334155" stroke-width="1.5"/>
+          <line x1="88%" y1="16" x2="88%" y2="32" stroke="#334155" stroke-width="1.5"/>
+        </svg>
+      </div>
+
+      <!-- Agents Row -->
+      <div class="agents-row">
+        <div class="agent-col">
+          <div class="node node-agent dev">👨‍💻 Developer</div>
+          <div class="down-arrow" style="height:16px;margin-bottom:14px"></div>
+          <div class="node node-tools tools-dev">read_file · write_file<br>run_tests · git_commit</div>
+        </div>
+        <div class="agent-col">
+          <div class="node node-agent qa">🧪 QA Engineer</div>
+          <div class="down-arrow" style="height:16px;margin-bottom:14px"></div>
+          <div class="node node-tools tools-qa">pytest · coverage<br>linter · type_check</div>
+        </div>
+        <div class="agent-col">
+          <div class="node node-agent review">🔍 Code Reviewer</div>
+          <div class="down-arrow" style="height:16px;margin-bottom:14px"></div>
+          <div class="node node-tools tools-rev">ast_analyze · diff<br>security_scan · metrics</div>
+        </div>
+        <div class="agent-col">
+          <div class="node node-agent ops">⚙️ DevOps</div>
+          <div class="down-arrow" style="height:16px;margin-bottom:14px"></div>
+          <div class="node node-tools tools-ops">docker · env_setup<br>deps · ci_config</div>
+        </div>
+        <div class="agent-col">
+          <div class="node node-agent docs">📚 Docs Writer</div>
+          <div class="down-arrow" style="height:16px;margin-bottom:14px"></div>
+          <div class="node node-tools tools-docs">gen_readme · docstring<br>changelog · diagram</div>
+        </div>
+      </div>
+
+      <!-- Fan-in -->
+      <div class="h-line-wrapper" style="margin-top:0">
+        <svg width="100%" height="32" style="position:absolute;top:0;left:0;overflow:visible">
+          <line x1="12%" y1="0" x2="12%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <line x1="29%" y1="0" x2="29%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <line x1="50%" y1="0" x2="50%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <line x1="70%" y1="0" x2="70%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <line x1="88%" y1="0" x2="88%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <line x1="12%" y1="16" x2="88%" y2="16" stroke="#334155" stroke-width="1.5"/>
+          <line x1="50%" y1="16" x2="50%" y2="32" stroke="#334155" stroke-width="1.5"/>
+        </svg>
+      </div>
+
+      <!-- Human in the loop -->
+      <div style="height:14px"></div>
+      <div class="human-loop">⏸️ &nbsp;HUMAN-IN-THE-LOOP (optional checkpoint)</div>
+      <div class="arrow"></div>
+      <div style="height:14px"></div>
+
+      <!-- End -->
+      <div class="node node-end">
+        ✅ &nbsp;RESULT + GIT COMMIT
+      </div>
+
+    </div>
+  </div>
+
+  <!-- AGENT DETAILS -->
+  <div class="sections">
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(16,185,129,0.1)">👨‍💻</div>
+        <h3 style="color:#10b981">Developer Agent</h3>
+      </div>
+      <ul>
+        <li>Lê e escreve arquivos nos repositórios locais</li>
+        <li>Implementa features baseado em tickets/issues</li>
+        <li>Refatora código com base no feedback do Reviewer</li>
+        <li>Executa testes após cada mudança</li>
+        <li>Faz commits semânticos no git</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(245,158,11,0.1)">🧪</div>
+        <h3 style="color:#f59e0b">QA Agent</h3>
+      </div>
+      <ul>
+        <li>Roda pytest e analisa cobertura de testes</li>
+        <li>Executa linters (ruff, pylint, eslint)</li>
+        <li>Type checking com mypy / pyright</li>
+        <li>Gera relatório de qualidade</li>
+        <li>Cria testes unitários faltantes</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(0,212,255,0.1)">🔍</div>
+        <h3 style="color:#00d4ff">Code Review Agent</h3>
+      </div>
+      <ul>
+        <li>Analisa diffs e aponta melhorias</li>
+        <li>Detecta code smells e anti-patterns</li>
+        <li>Scan de vulnerabilidades (bandit, semgrep)</li>
+        <li>Métricas de complexidade ciclomática</li>
+        <li>Sugere padrões de design adequados</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(239,68,68,0.1)">⚙️</div>
+        <h3 style="color:#ef4444">DevOps Agent</h3>
+      </div>
+      <ul>
+        <li>Gerencia dependências (pip, npm, poetry)</li>
+        <li>Configura Dockerfile e docker-compose</li>
+        <li>Cria/atualiza .env e configs</li>
+        <li>Setup de CI/CD (GitHub Actions)</li>
+        <li>Monitoramento de performance</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(167,139,250,0.1)">📚</div>
+        <h3 style="color:#a78bfa">Docs Agent</h3>
+      </div>
+      <ul>
+        <li>Gera e atualiza README.md</li>
+        <li>Docstrings automáticas (Google/NumPy style)</li>
+        <li>Changelog a partir dos commits</li>
+        <li>Diagramas de arquitetura (Mermaid)</li>
+        <li>Documentação de API (OpenAPI/Sphinx)</li>
+      </ul>
+    </div>
+    <div class="card">
+      <div class="card-header">
+        <div class="card-icon" style="background:rgba(124,58,237,0.1)">🧠</div>
+        <h3 style="color:#a78bfa">Supervisor (IT Manager)</h3>
+      </div>
+      <ul>
+        <li>Interpreta o request do usuário</li>
+        <li>Define plano de execução e prioridades</li>
+        <li>Roteia tarefas para os agentes corretos</li>
+        <li>Gerencia estado compartilhado (AgentState)</li>
+        <li>Decide quando terminar ou iterar mais</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- CODE SKELETON -->
+  <div class="code-block">
+    <div class="filename">it_department/graph.py</div>
+    <pre><span class="cm"># ── State compartilhado entre todos os agentes ──────────────────────────</span>
+<span class="kw">from</span> <span class="fn">typing</span> <span class="kw">import</span> <span class="cls">TypedDict</span>, <span class="cls">Annotated</span>, <span class="cls">List</span>
+<span class="kw">from</span> <span class="fn">langgraph.graph</span> <span class="kw">import</span> <span class="cls">StateGraph</span>, <span class="cls">END</span>
+<span class="kw">from</span> <span class="fn">langgraph.checkpoint.memory</span> <span class="kw">import</span> <span class="cls">MemorySaver</span>
+<span class="kw">import</span> <span class="fn">operator</span>
+
+<span class="kw">class</span> <span class="cls">AgentState</span>(<span class="cls">TypedDict</span>):
+    messages:       <span class="cls">Annotated</span>[<span class="cls">List</span>, operator.add]   <span class="cm"># histórico</span>
+    task:           <span class="fn">str</span>                               <span class="cm"># request atual</span>
+    repo_path:      <span class="fn">str</span>                               <span class="cm"># repo local</span>
+    plan:           <span class="fn">str</span>                               <span class="cm"># plano do supervisor</span>
+    next_agent:     <span class="fn">str</span>                               <span class="cm"># roteamento</span>
+    artifacts:      <span class="fn">dict</span>                              <span class="cm"># saídas dos agentes</span>
+    iteration:      <span class="fn">int</span>                               <span class="cm"># loop guard</span>
+    human_approved: <span class="fn">bool</span>                              <span class="cm"># human-in-the-loop</span>
+
+<span class="cm"># ── Supervisor decide quem trabalha ──────────────────────────────────────</span>
+<span class="kw">def</span> <span class="fn">supervisor_node</span>(state: <span class="cls">AgentState</span>) -> <span class="cls">AgentState</span>:
+    <span class="str">"""IT Manager: analisa task e roteia para o agente correto."""</span>
+    ...
+
+<span class="kw">def</span> <span class="fn">route_supervisor</span>(state: <span class="cls">AgentState</span>) -> <span class="fn">str</span>:
+    <span class="kw">return</span> state[<span class="str">"next_agent"</span>]   <span class="cm"># "developer" | "qa" | "reviewer" | "devops" | "docs" | "END"</span>
+
+<span class="cm"># ── Build do grafo ────────────────────────────────────────────────────────</span>
+builder = <span class="cls">StateGraph</span>(<span class="cls">AgentState</span>)
+
+builder.add_node(<span class="str">"supervisor"</span>, supervisor_node)
+builder.add_node(<span class="str">"developer"</span>,  developer_node)
+builder.add_node(<span class="str">"qa"</span>,          qa_node)
+builder.add_node(<span class="str">"reviewer"</span>,   reviewer_node)
+builder.add_node(<span class="str">"devops"</span>,     devops_node)
+builder.add_node(<span class="str">"docs"</span>,       docs_node)
+
+builder.set_entry_point(<span class="str">"supervisor"</span>)
+
+<span class="cm"># Supervisor roteia dinamicamente</span>
+builder.add_conditional_edges(<span class="str">"supervisor"</span>, route_supervisor, {
+    <span class="str">"developer"</span>: <span class="str">"developer"</span>,
+    <span class="str">"qa"</span>:        <span class="str">"qa"</span>,
+    <span class="str">"reviewer"</span>:  <span class="str">"reviewer"</span>,
+    <span class="str">"devops"</span>:   <span class="str">"devops"</span>,
+    <span class="str">"docs"</span>:     <span class="str">"docs"</span>,
+    <span class="str">"END"</span>:      <span class="cls">END</span>,
+})
+
+<span class="cm"># Todos os agentes voltam para o supervisor</span>
+<span class="kw">for</span> agent <span class="kw">in</span> [<span class="str">"developer"</span>, <span class="str">"qa"</span>, <span class="str">"reviewer"</span>, <span class="str">"devops"</span>, <span class="str">"docs"</span>]:
+    builder.add_edge(agent, <span class="str">"supervisor"</span>)
+
+<span class="cm"># Checkpointer para human-in-the-loop e persistência</span>
+memory = <span class="cls">MemorySaver</span>()
+graph  = builder.compile(checkpointer=memory, interrupt_before=[<span class="str">"developer"</span>])
+</pre>
+  </div>
+
+  <!-- FILE STRUCTURE -->
+  <div class="structure-tree">
+    <h3>📁 Estrutura do Projeto</h3>
+    <pre><span class="tree-dir">it_department/</span>
+<span class="tree-line">├── </span><span class="tree-file">main.py</span>               <span class="tree-comment">← CLI / ponto de entrada</span>
+<span class="tree-line">├── </span><span class="tree-file">graph.py</span>              <span class="tree-comment">← StateGraph + roteamento</span>
+<span class="tree-line">├── </span><span class="tree-file">state.py</span>              <span class="tree-comment">← AgentState TypedDict</span>
+<span class="tree-line">│</span>
+<span class="tree-line">├── </span><span class="tree-dir">agents/</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">supervisor.py</span>     <span class="tree-comment">← IT Manager / router</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">developer.py</span>      <span class="tree-comment">← escrita/refatoração de código</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">qa.py</span>             <span class="tree-comment">← testes + linting</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">reviewer.py</span>       <span class="tree-comment">← code review + segurança</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">devops.py</span>         <span class="tree-comment">← infra + deps</span>
+<span class="tree-line">│   └── </span><span class="tree-file">docs_writer.py</span>    <span class="tree-comment">← documentação</span>
+<span class="tree-line">│</span>
+<span class="tree-line">├── </span><span class="tree-dir">tools/</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">filesystem.py</span>     <span class="tree-comment">← read/write/list files</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">git_tools.py</span>      <span class="tree-comment">← git diff/commit/log</span>
+<span class="tree-line">│   ├── </span><span class="tree-file">shell_tools.py</span>    <span class="tree-comment">← subprocess (pytest, ruff...)</span>
+<span class="tree-line">│   └── </span><span class="tree-file">ast_tools.py</span>      <span class="tree-comment">← análise de AST Python</span>
+<span class="tree-line">│</span>
+<span class="tree-line">├── </span><span class="tree-dir">prompts/</span>
+<span class="tree-line">│   └── </span><span class="tree-file">*.md</span>              <span class="tree-comment">← system prompts dos agentes</span>
+<span class="tree-line">│</span>
+<span class="tree-line">└── </span><span class="tree-file">pyproject.toml</span>        <span class="tree-comment">← langgraph, langchain-anthropic, gitpython</span></pre>
+  </div>
+
+  <footer>LANGGRAPH · MULTI-AGENT · IT DEPARTMENT · 2025</footer>
+</div>
+</body>
+</html>
