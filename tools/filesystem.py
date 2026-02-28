@@ -47,7 +47,7 @@ from langchain_core.tools import tool
 # Caminho base permitido — protege contra path traversal.
 # Ordem de precedência:
 #   1.set_base_path(path) chamado em runtime pelo graph.py
-#   2. Variável de ambiente ITDEPT_BASE_PATH
+#   2.Variável de ambiente ITDEPT_BASE_PATH
 #   3. Diretório atual (cwd) como fallback
 ALLOWED_BASE_PATH: Path = Path(
     os.environ.get("ITDEPT_BASE_PATH", str(Path.cwd()))
